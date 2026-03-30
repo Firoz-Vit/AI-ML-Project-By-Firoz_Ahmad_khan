@@ -1,0 +1,70 @@
+Suspicious Transaction Detection
+BYOP — Project Report
+Fundamentals of AI and ML
+
+1. Problem Statement
+Digital payments have made life easier, but they've also made fraud easier to hide. Millions of transactions move through UPI, net banking, and card networks every single hour — and no team of analysts can realistically keep up with that volume. Rule-based systems exist, but they're blunt instruments. Flag anything above ₹50,000? You'll block half the legitimate transfers. Flag anything from outside the state? You'll frustrate every traveller.
+The question I wanted to answer was simpler and more specific: if you look at how a transaction behaves — the amount, the time, how often the user has transacted that day, how far it is from home, what kind of merchant it's at — can a model tell whether something is off? And can it do that in a way where a human reviewer can actually understand the reasoning, not just trust a black box?
+
+2. Why This Problem Matters
+This one's personal. A few years ago, a family member's debit card got compromised. The fraudulent transactions were small — each one looked like a normal grocery run or a small recharge. The bank's system didn't catch it for nearly three days, by which point a meaningful amount had already been drained. It only flagged once the total crossed some internal threshold.
+That stuck with me. A smarter system — one that looked at patterns, not just amounts — might have caught the burst of unusual activity on day one. That's what this project is trying to build, even in a small way.
+The broader picture isn't great either. Payment fraud costs Indian banks and customers billions of rupees every year, and the people hit hardest are usually the ones with the least buffer — small shopkeepers, salaried workers, students. A detection system that actually works doesn't need to be perfect. It just needs to catch enough, early enough.
+
+3. Approach and Methodology
+3.1 Dataset
+Real transaction data is sensitive, tightly held, and almost never comes with clean fraud labels. So I built a synthetic dataset of 5,000 transactions, designed to behave the way real transactions do — normal ones clustering around daytime hours, moderate amounts, nearby merchants; fraudulent ones more likely to show up at 2 AM, at high-risk or foreign merchants, with amounts that are out of character, and often in a sudden cluster of activity within a single day.
+The fraud rate was set at 5%, which is roughly realistic and makes the problem hard enough to be worth solving.
+3.2 Feature Engineering
+The raw fields a transaction comes with — amount, hour, distance — are a start, but not the whole picture. I derived a few extra features that make the patterns more obvious to the model:
+
+log_amount — the raw amount has a heavy right tail; log-transforming it makes the distribution more workable.
+is_night — a binary flag for anything happening between 10 PM and 5 AM.
+high_frequency — flags users who made more than 8 transactions in a single day, which often signals scripted or stolen-credential attacks.
+far_from_home — flags transactions more than 100 km from the user's usual location.
+risk_x_foreign — a combined signal: if a merchant is both foreign and high-risk, that combination should carry more weight than either factor alone.
+
+3.3 Models
+I trained two models that approach the problem differently:
+
+Random Forest Classifier — supervised, trained on labeled data. I used class_weight='balanced' to keep it from lazily predicting everything as normal (which would be 95% accurate and completely useless). 150 trees, max depth 8.
+Isolation Forest — unsupervised, no labels needed. The logic is elegant: if a data point is genuinely unusual, it should be easy to isolate from everything else with random partitioning. Points that get isolated quickly are anomalies. It's less precise than the supervised model, but it's the right tool when you don't have labeled fraud history to work from.
+
+
+4. Key Decisions Made
+A few choices here were deliberate and worth explaining:
+Synthetic data instead of a public dataset — datasets like the Kaggle credit card fraud data are fine for benchmarking, but every feature is anonymized (V1, V2, V3...). You can't reason about them, can't explain them to anyone, and can't connect them to real-world intuition. I wanted features that meant something, even if the data underneath them was simulated.
+Running two model types — this wasn't about getting a higher number. Supervised models need labels; most real organizations starting out in fraud detection don't have well-labeled historical data. The Isolation Forest demonstrates that you can do meaningful detection before you've built up a fraud-labeled dataset.
+Scaling before training — I applied StandardScaler across all features before passing them to either model. Isolation Forest is particularly sensitive to scale differences between features. It's one of those things that's easy to skip and quietly tanks your results.
+Using classification_report instead of accuracy — accuracy on an imbalanced dataset is almost meaningless. A model that calls everything normal would score 95% and miss every single fraud case. Precision, recall, and F1 on the fraud class are the numbers that actually matter.
+
+5. Challenges Faced
+The imbalance problem was the one that took the most time to get right. Early model versions looked great on paper — 94%, 95% accuracy — but when I looked at the fraud recall, it was sitting around 0.3. The model had essentially learned to ignore the minority class. I tried three things: tuning class_weight, adjusting the classification threshold, and SMOTE oversampling. The class_weight='balanced' approach ended up giving the best tradeoff without introducing noise from synthetic oversampling.
+Getting the synthetic data right was harder than I expected too. If the fraud distribution is too obviously different from normal, the model learns in a trivially easy way and the results look better than they really are. I went through several iterations of the data generation parameters trying to create enough overlap that the problem was realistic — easy to define, harder to solve.
+There was also a conceptual challenge I kept coming back to: what does "suspicious" actually mean? A ₹2 lakh international transfer might be routine for a small exporter but a five-alarm signal for a college student. The model doesn't know who it's dealing with — it only sees the transaction. User-level context would make this significantly more powerful, and it's the clearest limitation in the current version.
+
+6. Results and Observations
+The Random Forest came in with a ROC-AUC of around 0.96 on the test set. Fraud recall was approximately 0.88, precision around 0.82. In plain terms: it correctly identifies roughly 88 out of every 100 fraudulent transactions, while keeping false alarms low enough to be manageable.
+The features that mattered most were merchant_risk_score, log_amount, distance_from_home_km, and transactions_per_day. That feels right — a high-risk merchant three cities away, combined with an unusually large amount and a burst of activity, is exactly the pattern a human investigator would flag too.
+The Isolation Forest flagged about 5.4% of transactions as anomalies, which is close to the actual fraud rate of 5%. Its precision was lower — expected, since it can't use label information to tighten its boundary — but as an unsupervised first pass, that's a reasonable result.
+
+7. What I Learned
+The model training part — the actual model.fit() line — took maybe 20 minutes. Everything else took days. Getting the data right, deciding which features to engineer, figuring out that accuracy was the wrong metric to optimize for — that's where the real work was.
+I also came away with a lot more respect for unsupervised methods. Before this project, if I had labeled data, I'd go straight to a classifier and not look back. Working with Isolation Forest changed that. There are real situations where you either don't have labels yet, or you can't trust the ones you have — and in those cases, anomaly detection isn't a fallback, it's the right tool.
+Writing this report was genuinely useful too. Putting decisions into words forced me to check whether they actually made sense. A few things I did on instinct held up under scrutiny. A couple didn't, and I had to go back and fix them. That back-and-forth is probably the part I'll remember longest.
+
+8. Future Scope
+
+Bring in real transaction data — even a publicly available anonymized dataset would be a step up from synthetic.
+Add time-series features: rolling transaction velocity over 3 days, 7 days, changes in spending pattern week-on-week.
+Try XGBoost or LightGBM and do a proper comparison.
+Build a small Streamlit interface where you can enter a transaction manually and get a prediction with an explanation.
+Add SHAP values so the output isn't just "suspicious" — it's "suspicious, primarily because of the merchant risk score and the late-night timing."
+
+
+9. References
+
+Scikit-learn documentation — RandomForestClassifier, IsolationForest
+Liu, F. T., Ting, K. M., & Zhou, Z. H. (2008). Isolation Forest. ICDM.
+Breiman, L. (2001). Random Forests. Machine Learning, 45(1), 5–32.
+Chawla, N. V. et al. (2002). SMOTE: Synthetic Minority Over-sampling Technique.
