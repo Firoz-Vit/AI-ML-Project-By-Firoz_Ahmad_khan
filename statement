@@ -1,0 +1,56 @@
+Project Statement
+Course: Fundamentals of AI and ML
+Submission Type: BYOP — Bring Your Own Project
+Project Title: Suspicious Transaction Detection
+
+Problem Being Solved
+Digital payments have become a part of daily life. UPI, card payments, net banking transfers — people use them without thinking twice. And for the most part, that trust is fine. But fraud happens, and when it does, it usually doesn't look dramatic. It looks like a few small transactions at odd hours, or a purchase from a merchant the user has never interacted with, or a sudden burst of activity in the middle of the night.
+The systems banks currently use to catch this are mostly rule-based. If a transaction crosses a fixed amount, flag it. If it comes from outside a certain region, block it. These rules catch the obvious stuff but miss everything that falls just below the threshold or comes packaged to look normal. A smarter approach would look at the full picture of a transaction and ask whether the combination of signals adds up to something suspicious.
+That is what this project tries to do.
+
+Why I Chose This Problem
+This did not start as a random topic pick. A family member had their debit card compromised, and because each individual transaction was small, the bank did not catch it for nearly three days. By the time anything was flagged, a significant amount had already been lost. That incident stayed with me. It felt like a problem that technology should be able to solve better than it currently does, and this course gave me the right tools to take a real shot at it.
+
+What the Project Does
+The project builds a full fraud detection pipeline from scratch in Python. Here is what it covers:
+
+Creates a realistic synthetic transaction dataset with both normal and fraudulent entries mixed in
+Builds meaningful features from raw transaction data like time of day, how far the transaction is from home, how many transactions happened that day, and the risk level of the merchant
+Trains a Random Forest Classifier that learns from labeled examples of normal and fraudulent transactions
+Trains an Isolation Forest that detects unusual transactions without needing any labels at all
+Evaluates both models using precision, recall, F1 score, and ROC-AUC rather than just accuracy, because accuracy alone is misleading when fraud cases are rare
+Generates visualizations including a confusion matrix, feature importance chart, and transaction amount distribution
+Includes a working function that takes a single new transaction and tells you whether it looks suspicious
+
+
+Connection to Course Concepts
+This project applies the following topics from the course directly:
+Concept | Where It Shows Up
+Supervised Learning | Random Forest trained on labeled transaction data
+Unsupervised Learning | Isolation Forest detecting anomalies without labels
+Feature Engineering | Derived features like is_night, high_frequency, risk_x_foreign
+Model Evaluation | Classification report, confusion matrix, ROC-AUC
+Data Preprocessing | StandardScaler applied before training both models
+Class Imbalance Handling | class_weight='balanced' used in the classifier
+Train-Test Split | 80/20 stratified split to keep the fraud ratio consistent
+
+Dataset Used
+Since real transaction data is sensitive and not publicly available with proper fraud labels, the dataset was generated synthetically. It contains 5,000 transactions designed to behave the way real data does, with normal transactions clustering around daytime hours and modest amounts, and fraudulent ones more likely to appear at night, at high-risk merchants, and in sudden bursts. The fraud rate was kept at 5 percent, which is close to real-world figures and makes the classification problem genuinely difficult.
+No real customer data was used at any point.
+
+Models and Tools
+
+Language: Python 3.8+
+Libraries: scikit-learn, pandas, numpy, matplotlib, seaborn
+Models: RandomForestClassifier and IsolationForest from scikit-learn
+Evaluation: classification_report, confusion_matrix, roc_auc_score
+
+
+Key Results
+The Random Forest model ended up with a ROC-AUC score of around 0.96 on the test set. It caught roughly 88 out of every 100 fraudulent transactions correctly, with a precision of about 0.82, which means false alarms were kept at a level a human reviewer could actually manage. The features that carried the most weight were merchant risk score, transaction amount, distance from home, and daily transaction count. That lines up with what you would intuitively expect a fraud analyst to look at too.
+
+Deliverables Submitted
+
+GitHub Repository — full source code, version controlled, publicly accessible
+Project Report — covers the problem, approach, decisions made, challenges faced, results, and reflections
+README File — explains what the project does, how to set it up, and how to run it from scratch
